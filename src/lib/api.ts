@@ -12,16 +12,26 @@ const headers = {
 
 export async function fetchLineStatuses(): Promise<LineStatus[]> {
   try {
+    console.log("Fetching line statuses from:", `${BASE_URL}/alerts?filter[route_type]=0,1`);
+    
     const response = await fetch(`${BASE_URL}/alerts?filter[route_type]=0,1`, {
       headers,
+      method: 'GET'
     });
     
+    console.log("Response status:", response.status);
+    console.log("Response headers:", Object.fromEntries(response.headers.entries()));
+
     if (!response.ok) {
-      throw new Error("Failed to fetch line statuses");
+      throw new Error(`Failed to fetch line statuses: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
     console.log("MBTA API Response:", data);
+    
+    if (!data || !data.data) {
+      throw new Error("Invalid API response format");
+    }
     
     // Process MBTA API response into our LineStatus format
     return data.data.map((alert: any) => ({
@@ -39,16 +49,25 @@ export async function fetchLineStatuses(): Promise<LineStatus[]> {
 
 export async function fetchDisruption(alertId: string): Promise<Disruption | null> {
   try {
+    console.log("Fetching disruption details for:", alertId);
+    
     const response = await fetch(`${BASE_URL}/alerts/${alertId}`, {
       headers,
+      method: 'GET'
     });
 
+    console.log("Disruption response status:", response.status);
+
     if (!response.ok) {
-      throw new Error("Failed to fetch disruption details");
+      throw new Error(`Failed to fetch disruption details: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
     const alert = data.data;
+
+    if (!alert) {
+      throw new Error("Invalid disruption response format");
+    }
 
     return {
       id: alert.id,
