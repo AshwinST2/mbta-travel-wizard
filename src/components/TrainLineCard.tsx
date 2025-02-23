@@ -35,8 +35,7 @@ export function TrainLineCard({ line, status, onSelect }: TrainLineCardProps) {
       onClick={onSelect}
       className="relative overflow-hidden rounded-xl bg-white/80 backdrop-blur-sm shadow-lg p-6 cursor-pointer transition-all"
     >
-      <div className="absolute top-0 left-0 w-2 h-full" 
-           className={lineColors[line]} />
+      <div className={`absolute top-0 left-0 w-2 h-full ${lineColors[line]}`} />
       <div className="flex justify-between items-start">
         <div>
           <h3 className="text-lg font-semibold mb-1">{lineNames[line]}</h3>
