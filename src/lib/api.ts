@@ -1,4 +1,3 @@
-
 import { LineStatus, Disruption } from "./types";
 
 const API_KEY = "39fcdfa840624066b6d9153cfb41fc70";
@@ -33,19 +32,63 @@ export async function fetchLineStatuses(): Promise<LineStatus[]> {
       throw new Error("Invalid API response format");
     }
     
-    // Process MBTA API response into our LineStatus format
-    return data.data.map((alert: any) => {
-      // Extract the affected line from the informed_entity
+    // Create a base set of normal statuses for all lines
+    const baseStatuses: LineStatus[] = [
+      {
+        id: 'red-base',
+        line: 'red',
+        status: 'normal',
+        description: 'Service operating normally',
+        timestamp: new Date().toISOString()
+      },
+      {
+        id: 'blue-base',
+        line: 'blue',
+        status: 'normal',
+        description: 'Service operating normally',
+        timestamp: new Date().toISOString()
+      },
+      {
+        id: 'orange-base',
+        line: 'orange',
+        status: 'normal',
+        description: 'Service operating normally',
+        timestamp: new Date().toISOString()
+      },
+      {
+        id: 'green-base',
+        line: 'green',
+        status: 'normal',
+        description: 'Service operating normally',
+        timestamp: new Date().toISOString()
+      }
+    ];
+
+    // Get alerts from the API
+    const alerts = data.data.map((alert: any) => {
       const affectedLine = alert.attributes.informed_entity?.[0]?.route_id?.toLowerCase() || 'unknown';
+      if (!['red', 'blue', 'orange', 'green'].includes(affectedLine)) {
+        return null;
+      }
       
       return {
         id: alert.id,
-        line: affectedLine as any, // Convert to TrainLine type
+        line: affectedLine,
         status: determineStatus(alert.attributes.severity),
         description: alert.attributes.header || 'Service update',
         timestamp: alert.attributes.updated_at || new Date().toISOString(),
       };
-    }).filter((status: LineStatus) => ['red', 'blue', 'orange', 'green'].includes(status.line));
+    }).filter(Boolean);
+
+    // For each line with alerts, replace the base status
+    alerts.forEach((alert: LineStatus) => {
+      const index = baseStatuses.findIndex(base => base.line === alert.line);
+      if (index !== -1) {
+        baseStatuses[index] = alert;
+      }
+    });
+
+    return baseStatuses;
   } catch (error) {
     console.error("Error fetching line statuses:", error);
     throw error;
