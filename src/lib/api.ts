@@ -2,7 +2,7 @@
 import { LineStatus, Disruption } from "./types";
 
 const API_KEY = "39fcdfa840624066b6d9153cfb41fc70";
-const BASE_URL = "https://api-v3.mbta.com";
+const BASE_URL = "https://cors-proxy.lovableio.com/https://api-v3.mbta.com";
 
 const headers = {
   "x-api-key": API_KEY,
@@ -21,6 +21,7 @@ export async function fetchLineStatuses(): Promise<LineStatus[]> {
     }
 
     const data = await response.json();
+    console.log("MBTA API Response:", data);
     
     // Process MBTA API response into our LineStatus format
     return data.data.map((alert: any) => ({
