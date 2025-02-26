@@ -1,5 +1,7 @@
 
-export type TrainLine = "red" | "blue" | "orange" | "green";
+export type MainLine = "red" | "blue" | "orange";
+export type GreenLineBranch = "green-b" | "green-c" | "green-d" | "green-e";
+export type TrainLine = MainLine | GreenLineBranch;
 
 export interface LineStatus {
   id: string;

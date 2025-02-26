@@ -13,15 +13,21 @@ const lineColors = {
   red: "bg-mbta-red",
   blue: "bg-mbta-blue",
   orange: "bg-mbta-orange",
-  green: "bg-mbta-green",
-};
+  "green-b": "bg-mbta-green",
+  "green-c": "bg-mbta-green",
+  "green-d": "bg-mbta-green",
+  "green-e": "bg-mbta-green"
+} as const;
 
 const lineNames = {
   red: "Red Line",
   blue: "Blue Line",
   orange: "Orange Line",
-  green: "Green Line",
-};
+  "green-b": "Green Line B",
+  "green-c": "Green Line C",
+  "green-d": "Green Line D",
+  "green-e": "Green Line E"
+} as const;
 
 export function TrainLineCard({ line, status, onSelect }: TrainLineCardProps) {
   const isDisrupted = status?.status !== "normal";

@@ -1,3 +1,4 @@
+
 import { LineStatus, Disruption, TrainLine } from "./types";
 
 const API_KEY = "39fcdfa840624066b6d9153cfb41fc70";
@@ -36,44 +37,74 @@ export async function fetchLineStatuses(): Promise<LineStatus[]> {
     const baseStatuses: LineStatus[] = [
       {
         id: 'red-base',
-        line: 'red' as TrainLine,
+        line: 'red',
         status: 'normal',
         description: 'Service operating normally',
         timestamp: new Date().toISOString()
       },
       {
         id: 'blue-base',
-        line: 'blue' as TrainLine,
+        line: 'blue',
         status: 'normal',
         description: 'Service operating normally',
         timestamp: new Date().toISOString()
       },
       {
         id: 'orange-base',
-        line: 'orange' as TrainLine,
+        line: 'orange',
         status: 'normal',
         description: 'Service operating normally',
         timestamp: new Date().toISOString()
       },
       {
-        id: 'green-base',
-        line: 'green' as TrainLine,
+        id: 'green-b-base',
+        line: 'green-b',
+        status: 'normal',
+        description: 'Service operating normally',
+        timestamp: new Date().toISOString()
+      },
+      {
+        id: 'green-c-base',
+        line: 'green-c',
+        status: 'normal',
+        description: 'Service operating normally',
+        timestamp: new Date().toISOString()
+      },
+      {
+        id: 'green-d-base',
+        line: 'green-d',
+        status: 'normal',
+        description: 'Service operating normally',
+        timestamp: new Date().toISOString()
+      },
+      {
+        id: 'green-e-base',
+        line: 'green-e',
         status: 'normal',
         description: 'Service operating normally',
         timestamp: new Date().toISOString()
       }
-    ];
+    ] as LineStatus[];
 
     // Get alerts from the API
     const alerts = data.data.map((alert: any) => {
-      const affectedLine = alert.attributes.informed_entity?.[0]?.route_id?.toLowerCase() || 'unknown';
-      if (!['red', 'blue', 'orange', 'green'].includes(affectedLine)) {
-        return null;
-      }
+      const routeId = alert.attributes.informed_entity?.[0]?.route_id?.toLowerCase() || 'unknown';
+      
+      // Map MBTA route IDs to our line types
+      let line: TrainLine | null = null;
+      if (routeId === 'red') line = 'red';
+      else if (routeId === 'blue') line = 'blue';
+      else if (routeId === 'orange') line = 'orange';
+      else if (routeId === 'green-b') line = 'green-b';
+      else if (routeId === 'green-c') line = 'green-c';
+      else if (routeId === 'green-d') line = 'green-d';
+      else if (routeId === 'green-e') line = 'green-e';
+      
+      if (!line) return null;
       
       return {
         id: alert.id,
-        line: affectedLine as TrainLine,
+        line,
         status: determineStatus(alert.attributes.severity),
         description: alert.attributes.header || 'Service update',
         timestamp: alert.attributes.updated_at || new Date().toISOString(),

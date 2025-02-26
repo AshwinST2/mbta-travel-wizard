@@ -8,7 +8,8 @@ import { DisruptionDetail } from "@/components/DisruptionDetail";
 import { Disruption, LineStatus, TrainLine } from "@/lib/types";
 import { Loader2 } from "lucide-react";
 
-const LINES: TrainLine[] = ["red", "blue", "orange", "green"];
+const MAIN_LINES: TrainLine[] = ["red", "blue", "orange"];
+const GREEN_BRANCHES: TrainLine[] = ["green-b", "green-c", "green-d", "green-e"];
 
 export default function Index() {
   const [selectedDisruption, setSelectedDisruption] = useState<Disruption | null>(null);
@@ -72,21 +73,43 @@ export default function Index() {
             <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
           </div>
         ) : (
-          <div className="grid gap-4">
-            {LINES.map((line, index) => (
-              <motion.div
-                key={line}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <TrainLineCard
-                  line={line}
-                  status={getLineStatus(line)}
-                  onSelect={() => handleLineSelect(line)}
-                />
-              </motion.div>
-            ))}
+          <div className="space-y-8">
+            <div className="grid gap-4">
+              {MAIN_LINES.map((line, index) => (
+                <motion.div
+                  key={line}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <TrainLineCard
+                    line={line}
+                    status={getLineStatus(line)}
+                    onSelect={() => handleLineSelect(line)}
+                  />
+                </motion.div>
+              ))}
+            </div>
+
+            <div className="space-y-2">
+              <h2 className="text-xl font-semibold text-gray-900">Green Line Branches</h2>
+              <div className="grid gap-4">
+                {GREEN_BRANCHES.map((line, index) => (
+                  <motion.div
+                    key={line}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: (index + MAIN_LINES.length) * 0.1 }}
+                  >
+                    <TrainLineCard
+                      line={line}
+                      status={getLineStatus(line)}
+                      onSelect={() => handleLineSelect(line)}
+                    />
+                  </motion.div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </main>
