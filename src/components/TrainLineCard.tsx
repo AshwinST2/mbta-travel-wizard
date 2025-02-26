@@ -1,7 +1,7 @@
 
 import { motion } from "framer-motion";
 import { LineStatus, TrainLine } from "@/lib/types";
-import { AlertCircle, CheckCircle, Clock, Info } from "lucide-react";
+import { AlertCircle, CheckCircle, Clock, Info, ArrowRight } from "lucide-react";
 
 interface TrainLineCardProps {
   line: TrainLine;
@@ -29,8 +29,19 @@ const lineNames = {
   "green-e": "Green Line E"
 } as const;
 
+const lineDestinations = {
+  red: ["Alewife", "Ashmont/Braintree"],
+  blue: ["Wonderland", "Bowdoin"],
+  orange: ["Oak Grove", "Forest Hills"],
+  "green-b": ["Boston College", "Government Center"],
+  "green-c": ["Cleveland Circle", "Government Center"],
+  "green-d": ["Riverside", "Government Center"],
+  "green-e": ["Heath Street", "Government Center"]
+} as const;
+
 export function TrainLineCard({ line, status, onSelect }: TrainLineCardProps) {
   const isDisrupted = status?.status !== "normal";
+  const destinations = lineDestinations[line];
 
   return (
     <motion.div
@@ -82,21 +93,28 @@ export function TrainLineCard({ line, status, onSelect }: TrainLineCardProps) {
         ) : null}
       </div>
 
-      {status && (
-        <div className="mt-4 space-y-2">
-          <p className={`text-sm ${
-            isDisrupted ? "text-mbta-red" : "text-gray-600"
-          }`}>
-            {status.description || "Service operating normally"}
-          </p>
-          {isDisrupted && (
-            <div className="flex items-center gap-1 text-xs text-gray-500">
-              <Info className="h-4 w-4" />
-              <p>Tap for more details</p>
-            </div>
-          )}
+      <div className="mt-4 space-y-2">
+        <div className="flex items-center gap-2 text-sm text-gray-600">
+          <ArrowRight className="h-4 w-4" />
+          <p>Trains to: {destinations.join(" and ")}</p>
         </div>
-      )}
+
+        {status && (
+          <>
+            <p className={`text-sm ${
+              isDisrupted ? "text-mbta-red" : "text-gray-600"
+            }`}>
+              {status.description || "Service operating normally"}
+            </p>
+            {isDisrupted && (
+              <div className="flex items-center gap-1 text-xs text-gray-500">
+                <Info className="h-4 w-4" />
+                <p>Tap for more details</p>
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </motion.div>
   );
 }

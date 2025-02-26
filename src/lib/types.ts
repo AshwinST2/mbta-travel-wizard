@@ -9,6 +9,7 @@ export interface LineStatus {
   status: "normal" | "minor" | "major";
   description: string;
   timestamp: string;
+  destinations?: string[];
 }
 
 export interface Disruption {

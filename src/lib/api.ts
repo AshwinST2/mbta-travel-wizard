@@ -181,11 +181,11 @@ export async function fetchDisruption(alertId: string): Promise<Disruption | nul
     // Get the first route as the primary one
     const affectedLine = Array.from(routes)[0] || 'unknown';
 
-    // Get all unique affected stations
+    // Get all unique affected stations with proper type assertion
     const stations = new Set(
       alert.attributes.informed_entity
         ?.filter((entity: any) => entity.stop)
-        ?.map((entity: any) => entity.stop)
+        ?.map((entity: any) => entity.stop as string)
     );
 
     return {
@@ -194,7 +194,7 @@ export async function fetchDisruption(alertId: string): Promise<Disruption | nul
       reason: alert.attributes.cause || alert.attributes.effect || "Unknown cause",
       startTime: alert.attributes.active_period?.[0]?.start || new Date().toISOString(),
       endTime: alert.attributes.active_period?.[0]?.end || null,
-      affectedStations: Array.from(stations),
+      affectedStations: Array.from(stations) as string[],
       description: alert.attributes.description || alert.attributes.header || "No description available",
     };
   } catch (error) {
