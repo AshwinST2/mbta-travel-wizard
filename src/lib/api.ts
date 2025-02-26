@@ -1,4 +1,4 @@
-import { LineStatus, Disruption } from "./types";
+import { LineStatus, Disruption, TrainLine } from "./types";
 
 const API_KEY = "39fcdfa840624066b6d9153cfb41fc70";
 const BASE_URL = "https://api-v3.mbta.com";
@@ -36,28 +36,28 @@ export async function fetchLineStatuses(): Promise<LineStatus[]> {
     const baseStatuses: LineStatus[] = [
       {
         id: 'red-base',
-        line: 'red',
+        line: 'red' as TrainLine,
         status: 'normal',
         description: 'Service operating normally',
         timestamp: new Date().toISOString()
       },
       {
         id: 'blue-base',
-        line: 'blue',
+        line: 'blue' as TrainLine,
         status: 'normal',
         description: 'Service operating normally',
         timestamp: new Date().toISOString()
       },
       {
         id: 'orange-base',
-        line: 'orange',
+        line: 'orange' as TrainLine,
         status: 'normal',
         description: 'Service operating normally',
         timestamp: new Date().toISOString()
       },
       {
         id: 'green-base',
-        line: 'green',
+        line: 'green' as TrainLine,
         status: 'normal',
         description: 'Service operating normally',
         timestamp: new Date().toISOString()
@@ -73,7 +73,7 @@ export async function fetchLineStatuses(): Promise<LineStatus[]> {
       
       return {
         id: alert.id,
-        line: affectedLine,
+        line: affectedLine as TrainLine,
         status: determineStatus(alert.attributes.severity),
         description: alert.attributes.header || 'Service update',
         timestamp: alert.attributes.updated_at || new Date().toISOString(),
