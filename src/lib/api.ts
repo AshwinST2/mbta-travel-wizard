@@ -86,36 +86,57 @@ export async function fetchLineStatuses(): Promise<LineStatus[]> {
       }
     ] as LineStatus[];
 
-    // Get alerts from the API
-    const alerts = data.data.map((alert: any) => {
-      const routeId = alert.attributes.informed_entity?.[0]?.route_id?.toLowerCase() || 'unknown';
+    // Get alerts from the API and handle multiple alerts per line
+    const alerts = data.data.flatMap((alert: any) => {
+      const entities = alert.attributes.informed_entity || [];
+      const routes = new Set(entities.map((entity: any) => entity.route?.toLowerCase()).filter(Boolean));
       
-      // Map MBTA route IDs to our line types
-      let line: TrainLine | null = null;
-      if (routeId === 'red') line = 'red';
-      else if (routeId === 'blue') line = 'blue';
-      else if (routeId === 'orange') line = 'orange';
-      else if (routeId === 'green-b') line = 'green-b';
-      else if (routeId === 'green-c') line = 'green-c';
-      else if (routeId === 'green-d') line = 'green-d';
-      else if (routeId === 'green-e') line = 'green-e';
-      
-      if (!line) return null;
-      
-      return {
-        id: alert.id,
-        line,
-        status: determineStatus(alert.attributes.severity),
-        description: alert.attributes.header || 'Service update',
-        timestamp: alert.attributes.updated_at || new Date().toISOString(),
-      };
-    }).filter(Boolean);
+      return Array.from(routes).map(routeId => {
+        // Map MBTA route IDs to our line types
+        let line: TrainLine | null = null;
+        if (routeId === 'red') line = 'red';
+        else if (routeId === 'blue') line = 'blue';
+        else if (routeId === 'orange') line = 'orange';
+        else if (routeId === 'green-b') line = 'green-b';
+        else if (routeId === 'green-c') line = 'green-c';
+        else if (routeId === 'green-d') line = 'green-d';
+        else if (routeId === 'green-e') line = 'green-e';
+        
+        if (!line) return null;
 
-    // For each line with alerts, replace the base status
+        const severity = alert.attributes.severity || 0;
+        const effect = alert.attributes.effect || '';
+        
+        // Determine status based on both severity and effect
+        let status: "normal" | "minor" | "major" = "normal";
+        if (severity >= 7 || ['SUSPENSION', 'STATION_CLOSURE'].includes(effect)) {
+          status = 'major';
+        } else if (severity >= 3 || ['DELAY', 'DETOUR', 'SHUTTLE', 'STOP_MOVED'].includes(effect)) {
+          status = 'minor';
+        }
+        
+        return {
+          id: alert.id,
+          line,
+          status,
+          description: alert.attributes.header || alert.attributes.short_header || 'Service update',
+          timestamp: alert.attributes.updated_at || new Date().toISOString(),
+        };
+      }).filter(Boolean);
+    });
+
+    // For each line with alerts, update the base status with the most severe alert
     alerts.forEach((alert: LineStatus) => {
       const index = baseStatuses.findIndex(base => base.line === alert.line);
       if (index !== -1) {
-        baseStatuses[index] = alert;
+        const currentStatus = baseStatuses[index];
+        // Update only if the new alert is more severe
+        if (
+          (alert.status === 'major') || 
+          (alert.status === 'minor' && currentStatus.status === 'normal')
+        ) {
+          baseStatuses[index] = alert;
+        }
       }
     });
 
@@ -150,33 +171,34 @@ export async function fetchDisruption(alertId: string): Promise<Disruption | nul
       throw new Error("Invalid disruption response format");
     }
 
-    const affectedLine = alert.attributes.informed_entity?.[0]?.route_id?.toLowerCase() || 'unknown';
+    // Get all affected routes
+    const routes = new Set(
+      alert.attributes.informed_entity
+        ?.map((entity: any) => entity.route?.toLowerCase())
+        .filter(Boolean)
+    );
+    
+    // Get the first route as the primary one
+    const affectedLine = Array.from(routes)[0] || 'unknown';
+
+    // Get all unique affected stations
+    const stations = new Set(
+      alert.attributes.informed_entity
+        ?.filter((entity: any) => entity.stop)
+        ?.map((entity: any) => entity.stop)
+    );
 
     return {
       id: alert.id,
-      line: affectedLine as any,
-      reason: alert.attributes.cause || "Unknown cause",
-      startTime: alert.attributes.active_period[0]?.start || new Date().toISOString(),
-      endTime: alert.attributes.active_period[0]?.end || null,
-      affectedStations: alert.attributes.informed_entity
-        .filter((entity: any) => entity.stop)
-        .map((entity: any) => entity.stop),
+      line: affectedLine as TrainLine,
+      reason: alert.attributes.cause || alert.attributes.effect || "Unknown cause",
+      startTime: alert.attributes.active_period?.[0]?.start || new Date().toISOString(),
+      endTime: alert.attributes.active_period?.[0]?.end || null,
+      affectedStations: Array.from(stations),
       description: alert.attributes.description || alert.attributes.header || "No description available",
     };
   } catch (error) {
     console.error("Error fetching disruption:", error);
     return null;
-  }
-}
-
-function determineStatus(severity: number): "normal" | "minor" | "major" {
-  switch (severity) {
-    case 7:
-      return "major";
-    case 5:
-    case 4:
-      return "minor";
-    default:
-      return "normal";
   }
 }
