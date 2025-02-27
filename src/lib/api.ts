@@ -9,13 +9,19 @@ const headers = new Headers({
   'Accept': 'application/vnd.api+json'
 });
 
-const isToday = (date: Date): boolean => {
-  const today = new Date();
-  return (
-    date.getDate() === today.getDate() &&
-    date.getMonth() === today.getMonth() &&
-    date.getFullYear() === today.getFullYear()
-  );
+const isCurrentAlert = (alert: any): boolean => {
+  const now = new Date();
+  const startTime = alert.attributes.active_period?.[0]?.start;
+  const endTime = alert.attributes.active_period?.[0]?.end;
+  
+  // If no start time, use created_at
+  const effectiveStartTime = startTime ? new Date(startTime) : new Date(alert.attributes.created_at);
+  const effectiveEndTime = endTime ? new Date(endTime) : null;
+  
+  // Alert is current if:
+  // 1. It has started (or was created) in the past
+  // 2. AND either has no end time OR hasn't ended yet
+  return effectiveStartTime <= now && (!effectiveEndTime || effectiveEndTime > now);
 };
 
 export async function fetchLineStatuses(): Promise<LineStatus[]> {
@@ -40,36 +46,67 @@ export async function fetchLineStatuses(): Promise<LineStatus[]> {
       throw new Error("Invalid API response format");
     }
 
-    // Filter out non-today alerts and sort remaining alerts by time
-    const todayAlerts = data.data.filter((alert: any) => {
-      const alertDate = new Date(alert.attributes.active_period?.[0]?.start || alert.attributes.created_at);
-      return isToday(alertDate);
-    }).sort((a: any, b: any) => {
+    // Filter to only include current alerts
+    const currentAlerts = data.data.filter(isCurrentAlert).sort((a: any, b: any) => {
       const dateA = new Date(a.attributes.active_period?.[0]?.start || a.attributes.created_at);
       const dateB = new Date(b.attributes.active_period?.[0]?.start || b.attributes.created_at);
       return dateB.getTime() - dateA.getTime(); // Most recent first
     });
 
+    console.log("Current alerts:", currentAlerts);
+
     const lineStatuses: LineStatus[] = [];
 
-    for (const alert of todayAlerts) {
+    for (const alert of currentAlerts) {
       const entities = alert.attributes.informed_entity || [];
       
       for (const entity of entities) {
         const routeId = entity.route?.toLowerCase();
-        const direction = entity.direction_id === 0 ? "outbound" : "inbound";
-        
+        if (!routeId) continue;
+
         let line: TrainLine | null = null;
-        if (routeId === 'red') line = 'red';
-        else if (routeId === 'blue') line = 'blue';
-        else if (routeId === 'orange') line = 'orange';
-        else if (routeId === 'green-b') line = 'green-b';
-        else if (routeId === 'green-c') line = 'green-c';
-        else if (routeId === 'green-d') line = 'green-d';
-        else if (routeId === 'green-e') line = 'green-e';
+
+        // Handle both direct routes and routes that include the line name
+        if (routeId === 'red' || routeId.includes('red')) line = 'red';
+        else if (routeId === 'blue' || routeId.includes('blue')) line = 'blue';
+        else if (routeId === 'orange' || routeId.includes('orange')) line = 'orange';
+        else if (routeId.includes('green-b')) line = 'green-b';
+        else if (routeId.includes('green-c')) line = 'green-c';
+        else if (routeId.includes('green-d')) line = 'green-d';
+        else if (routeId.includes('green-e')) line = 'green-e';
+        // Special handling for general Green Line alerts
+        else if (routeId === 'green' || routeId.includes('green')) {
+          // Add alert to all Green Line branches
+          ['green-b', 'green-c', 'green-d', 'green-e'].forEach(greenLine => {
+            const direction = entity.direction_id === 0 ? "outbound" : "inbound";
+            const severity = alert.attributes.severity || 0;
+            const effect = alert.attributes.effect || '';
+            
+            let status: "normal" | "minor" | "major" = "normal";
+            if (severity >= 7 || ['SUSPENSION', 'STATION_CLOSURE'].includes(effect)) {
+              status = 'major';
+            } else if (severity >= 3 || ['DELAY', 'DETOUR', 'SHUTTLE', 'STOP_MOVED'].includes(effect)) {
+              status = 'minor';
+            }
+
+            const description = alert.attributes.header || alert.attributes.short_header;
+            if (!description) return;
+
+            lineStatuses.push({
+              id: alert.id,
+              line: greenLine as TrainLine,
+              status,
+              description,
+              timestamp: alert.attributes.updated_at || alert.attributes.created_at,
+              direction
+            });
+          });
+          continue;
+        }
         
         if (!line) continue;
 
+        const direction = entity.direction_id === 0 ? "outbound" : "inbound";
         const severity = alert.attributes.severity || 0;
         const effect = alert.attributes.effect || '';
         
@@ -79,6 +116,9 @@ export async function fetchLineStatuses(): Promise<LineStatus[]> {
         } else if (severity >= 3 || ['DELAY', 'DETOUR', 'SHUTTLE', 'STOP_MOVED'].includes(effect)) {
           status = 'minor';
         }
+
+        const description = alert.attributes.header || alert.attributes.short_header;
+        if (!description) continue;
         
         const timestamp = alert.attributes.updated_at || alert.attributes.created_at;
 
@@ -86,13 +126,14 @@ export async function fetchLineStatuses(): Promise<LineStatus[]> {
           id: alert.id,
           line,
           status,
-          description: alert.attributes.header || alert.attributes.short_header || 'Service update',
+          description,
           timestamp,
           direction
         });
       }
     }
 
+    console.log("Processed line statuses:", lineStatuses);
     return lineStatuses;
   } catch (error) {
     console.error("Error fetching line statuses:", error);
