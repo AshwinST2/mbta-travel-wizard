@@ -1,4 +1,3 @@
-
 import { LineStatus, Disruption, TrainLine, Direction } from "./types";
 
 const API_KEY = "39fcdfa840624066b6d9153cfb41fc70";
@@ -9,6 +8,16 @@ const headers = new Headers({
   'Accept': 'application/vnd.api+json'
 });
 
+const isToday = (date: Date): boolean => {
+  const today = new Date();
+  const targetDate = new Date(date);
+  return (
+    targetDate.getDate() === today.getDate() &&
+    targetDate.getMonth() === today.getMonth() &&
+    targetDate.getFullYear() === today.getFullYear()
+  );
+};
+
 const isCurrentAlert = (alert: any): boolean => {
   const now = new Date();
   const startTime = alert.attributes.active_period?.[0]?.start;
@@ -16,12 +25,19 @@ const isCurrentAlert = (alert: any): boolean => {
   
   // If no start time, use created_at
   const effectiveStartTime = startTime ? new Date(startTime) : new Date(alert.attributes.created_at);
-  const effectiveEndTime = endTime ? new Date(endTime) : null;
   
-  // Alert is current if:
-  // 1. It has started (or was created) in the past
-  // 2. AND either has no end time OR hasn't ended yet
-  return effectiveStartTime <= now && (!effectiveEndTime || effectiveEndTime > now);
+  // Check if the alert is from today
+  if (!isToday(effectiveStartTime)) {
+    return false;
+  }
+  
+  // If it has an end time, check if it's still valid
+  if (endTime) {
+    const effectiveEndTime = new Date(endTime);
+    return effectiveEndTime > now;
+  }
+  
+  return true;
 };
 
 export async function fetchLineStatuses(): Promise<LineStatus[]> {
