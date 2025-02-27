@@ -1,7 +1,7 @@
 
 import { motion } from "framer-motion";
-import { LineStatus, TrainLine } from "@/lib/types";
-import { AlertCircle, CheckCircle, Clock, Info, ArrowRight } from "lucide-react";
+import { LineStatus, TrainLine, Direction } from "@/lib/types";
+import { AlertCircle, CheckCircle, Clock, Info, ArrowRight, AlertTriangle } from "lucide-react";
 
 interface TrainLineCardProps {
   line: TrainLine;
@@ -30,18 +30,54 @@ const lineNames = {
 } as const;
 
 const lineDestinations = {
-  red: ["Alewife", "Ashmont/Braintree"],
-  blue: ["Wonderland", "Bowdoin"],
-  orange: ["Oak Grove", "Forest Hills"],
-  "green-b": ["Boston College", "Government Center"],
-  "green-c": ["Cleveland Circle", "Government Center"],
-  "green-d": ["Riverside", "Government Center"],
-  "green-e": ["Heath Street", "Government Center"]
+  red: {
+    inbound: "Ashmont/Braintree",
+    outbound: "Alewife"
+  },
+  blue: {
+    inbound: "Bowdoin",
+    outbound: "Wonderland"
+  },
+  orange: {
+    inbound: "Forest Hills",
+    outbound: "Oak Grove"
+  },
+  "green-b": {
+    inbound: "Government Center",
+    outbound: "Boston College"
+  },
+  "green-c": {
+    inbound: "Government Center",
+    outbound: "Cleveland Circle"
+  },
+  "green-d": {
+    inbound: "Government Center",
+    outbound: "Riverside"
+  },
+  "green-e": {
+    inbound: "Government Center",
+    outbound: "Heath Street"
+  }
 } as const;
 
 export function TrainLineCard({ line, status, onSelect }: TrainLineCardProps) {
-  const isDisrupted = status?.status !== "normal";
-  const destinations = lineDestinations[line];
+  const isToday = (date: string) => {
+    const today = new Date();
+    const alertDate = new Date(date);
+    return (
+      alertDate.getDate() === today.getDate() &&
+      alertDate.getMonth() === today.getMonth() &&
+      alertDate.getFullYear() === today.getFullYear()
+    );
+  };
+
+  const getStatusSeverity = (status: LineStatus | null) => {
+    if (!status) return 0;
+    if (status.status === "major" && isToday(status.timestamp)) return 3;
+    if (status.status === "major") return 2;
+    if (status.status === "minor" && isToday(status.timestamp)) return 1;
+    return 0;
+  };
 
   return (
     <motion.div
@@ -53,66 +89,80 @@ export function TrainLineCard({ line, status, onSelect }: TrainLineCardProps) {
       className="relative overflow-hidden rounded-xl bg-white/80 backdrop-blur-sm shadow-lg p-6 cursor-pointer transition-all"
     >
       <div className={`absolute top-0 left-0 w-2 h-full ${lineColors[line]}`} />
-      <div className="flex justify-between items-start">
-        <div className="space-y-1">
+      <div className="space-y-4">
+        <div className="flex justify-between items-start">
+          <h3 className="text-lg font-semibold">{lineNames[line]}</h3>
+          {status?.status !== "normal" && isToday(status.timestamp) && (
+            <AlertTriangle className="text-red-500 h-5 w-5" />
+          )}
+        </div>
+
+        {/* Outbound Direction */}
+        <div className="space-y-2 border-b border-gray-100 pb-3">
+          <div className="flex items-center gap-2 text-sm">
+            <ArrowRight className="h-4 w-4" />
+            <p className="font-medium">To {lineDestinations[line].outbound}</p>
+          </div>
           <div className="flex items-center gap-2">
-            <h3 className="text-lg font-semibold">{lineNames[line]}</h3>
             {status?.status === "major" && (
               <span className="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-800 rounded-full">
-                Major delays
+                Major delays {isToday(status.timestamp) && "TODAY"}
               </span>
             )}
             {status?.status === "minor" && (
               <span className="px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
-                Minor delays
+                Minor delays {isToday(status.timestamp) && "TODAY"}
               </span>
             )}
           </div>
-          <div className="flex items-center gap-2 text-sm text-gray-500">
-            <Clock className="h-4 w-4" />
-            <p>
-              {status ? (
-                new Date(status.timestamp).toLocaleString([], {
+        </div>
+
+        {/* Inbound Direction */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-sm">
+            <ArrowRight className="h-4 w-4" />
+            <p className="font-medium">To {lineDestinations[line].inbound}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {status?.status === "major" && (
+              <span className="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-800 rounded-full">
+                Major delays {isToday(status.timestamp) && "TODAY"}
+              </span>
+            )}
+            {status?.status === "minor" && (
+              <span className="px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
+                Minor delays {isToday(status.timestamp) && "TODAY"}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Status Information */}
+        {status && (
+          <div className="mt-2 space-y-2">
+            <div className="flex items-center gap-2 text-xs text-gray-500">
+              <Clock className="h-3 w-3" />
+              <p>
+                {new Date(status.timestamp).toLocaleString([], {
                   hour: "numeric",
                   minute: "2-digit",
                   month: "short",
                   day: "numeric",
-                })
-              ) : (
-                "Updating..."
-              )}
-            </p>
-          </div>
-        </div>
-        {status ? (
-          isDisrupted ? (
-            <AlertCircle className="text-mbta-red h-6 w-6 shrink-0" />
-          ) : (
-            <CheckCircle className="text-mbta-green h-6 w-6 shrink-0" />
-          )
-        ) : null}
-      </div>
-
-      <div className="mt-4 space-y-2">
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <ArrowRight className="h-4 w-4" />
-          <p>Trains to: {destinations.join(" and ")}</p>
-        </div>
-
-        {status && (
-          <>
+                })}
+              </p>
+            </div>
             <p className={`text-sm ${
-              isDisrupted ? "text-mbta-red" : "text-gray-600"
+              status.status !== "normal" ? "text-mbta-red" : "text-gray-600"
             }`}>
               {status.description || "Service operating normally"}
             </p>
-            {isDisrupted && (
+            {status.status !== "normal" && (
               <div className="flex items-center gap-1 text-xs text-gray-500">
                 <Info className="h-4 w-4" />
                 <p>Tap for more details</p>
               </div>
             )}
-          </>
+          </div>
         )}
       </div>
     </motion.div>

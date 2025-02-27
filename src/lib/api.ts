@@ -1,5 +1,4 @@
-
-import { LineStatus, Disruption, TrainLine } from "./types";
+import { LineStatus, Disruption, TrainLine, Direction } from "./types";
 
 const API_KEY = "39fcdfa840624066b6d9153cfb41fc70";
 const BASE_URL = "https://api-v3.mbta.com";
@@ -20,8 +19,6 @@ export async function fetchLineStatuses(): Promise<LineStatus[]> {
       cache: 'no-cache'
     });
     
-    console.log("Response status:", response.status);
-
     if (!response.ok) {
       throw new Error(`Failed to fetch line statuses: ${response.status} ${response.statusText}`);
     }
@@ -32,66 +29,29 @@ export async function fetchLineStatuses(): Promise<LineStatus[]> {
     if (!data || !data.data) {
       throw new Error("Invalid API response format");
     }
-    
-    // Create a base set of normal statuses for all lines
-    const baseStatuses: LineStatus[] = [
-      {
-        id: 'red-base',
-        line: 'red',
-        status: 'normal',
-        description: 'Service operating normally',
-        timestamp: new Date().toISOString()
-      },
-      {
-        id: 'blue-base',
-        line: 'blue',
-        status: 'normal',
-        description: 'Service operating normally',
-        timestamp: new Date().toISOString()
-      },
-      {
-        id: 'orange-base',
-        line: 'orange',
-        status: 'normal',
-        description: 'Service operating normally',
-        timestamp: new Date().toISOString()
-      },
-      {
-        id: 'green-b-base',
-        line: 'green-b',
-        status: 'normal',
-        description: 'Service operating normally',
-        timestamp: new Date().toISOString()
-      },
-      {
-        id: 'green-c-base',
-        line: 'green-c',
-        status: 'normal',
-        description: 'Service operating normally',
-        timestamp: new Date().toISOString()
-      },
-      {
-        id: 'green-d-base',
-        line: 'green-d',
-        status: 'normal',
-        description: 'Service operating normally',
-        timestamp: new Date().toISOString()
-      },
-      {
-        id: 'green-e-base',
-        line: 'green-e',
-        status: 'normal',
-        description: 'Service operating normally',
-        timestamp: new Date().toISOString()
-      }
-    ] as LineStatus[];
 
-    // Get alerts from the API and handle multiple alerts per line
-    const alerts = data.data.flatMap((alert: any) => {
+    // Sort alerts by date, prioritizing today's alerts
+    const sortedAlerts = data.data.sort((a: any, b: any) => {
+      const dateA = new Date(a.attributes.active_period?.[0]?.start || a.attributes.created_at);
+      const dateB = new Date(b.attributes.active_period?.[0]?.start || b.attributes.created_at);
+      const isAToday = isToday(dateA);
+      const isBToday = isToday(dateB);
+
+      if (isAToday && !isBToday) return -1;
+      if (!isAToday && isBToday) return 1;
+      return dateA.getTime() - dateB.getTime();
+    });
+
+    // Create line statuses from sorted alerts
+    const lineStatuses: LineStatus[] = [];
+
+    for (const alert of sortedAlerts) {
       const entities = alert.attributes.informed_entity || [];
-      const routes = new Set(entities.map((entity: any) => entity.route?.toLowerCase()).filter(Boolean));
       
-      return Array.from(routes).map(routeId => {
+      for (const entity of entities) {
+        const routeId = entity.route?.toLowerCase();
+        const direction = entity.direction_id === 0 ? "outbound" : "inbound";
+        
         // Map MBTA route IDs to our line types
         let line: TrainLine | null = null;
         if (routeId === 'red') line = 'red';
@@ -102,12 +62,11 @@ export async function fetchLineStatuses(): Promise<LineStatus[]> {
         else if (routeId === 'green-d') line = 'green-d';
         else if (routeId === 'green-e') line = 'green-e';
         
-        if (!line) return null;
+        if (!line) continue;
 
         const severity = alert.attributes.severity || 0;
         const effect = alert.attributes.effect || '';
         
-        // Determine status based on both severity and effect
         let status: "normal" | "minor" | "major" = "normal";
         if (severity >= 7 || ['SUSPENSION', 'STATION_CLOSURE'].includes(effect)) {
           status = 'major';
@@ -115,36 +74,35 @@ export async function fetchLineStatuses(): Promise<LineStatus[]> {
           status = 'minor';
         }
         
-        return {
+        const timestamp = alert.attributes.updated_at || alert.attributes.created_at;
+        const startTime = alert.attributes.active_period?.[0]?.start;
+
+        lineStatuses.push({
           id: alert.id,
           line,
           status,
           description: alert.attributes.header || alert.attributes.short_header || 'Service update',
-          timestamp: alert.attributes.updated_at || new Date().toISOString(),
-        };
-      }).filter(Boolean);
-    });
-
-    // For each line with alerts, update the base status with the most severe alert
-    alerts.forEach((alert: LineStatus) => {
-      const index = baseStatuses.findIndex(base => base.line === alert.line);
-      if (index !== -1) {
-        const currentStatus = baseStatuses[index];
-        // Update only if the new alert is more severe
-        if (
-          (alert.status === 'major') || 
-          (alert.status === 'minor' && currentStatus.status === 'normal')
-        ) {
-          baseStatuses[index] = alert;
-        }
+          timestamp,
+          direction,
+          startTime
+        });
       }
-    });
+    }
 
-    return baseStatuses;
+    return lineStatuses;
   } catch (error) {
     console.error("Error fetching line statuses:", error);
     throw error;
   }
+}
+
+function isToday(date: Date): boolean {
+  const today = new Date();
+  return (
+    date.getDate() === today.getDate() &&
+    date.getMonth() === today.getMonth() &&
+    date.getFullYear() === today.getFullYear()
+  );
 }
 
 export async function fetchDisruption(alertId: string): Promise<Disruption | null> {
