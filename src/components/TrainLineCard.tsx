@@ -1,4 +1,3 @@
-
 import { motion } from "framer-motion";
 import { LineStatus, TrainLine, Direction } from "@/lib/types";
 import { AlertCircle, CheckCircle, Clock, Info, ArrowRight, AlertTriangle } from "lucide-react";
@@ -71,12 +70,20 @@ export function TrainLineCard({ line, status, onSelect }: TrainLineCardProps) {
     );
   };
 
-  const getStatusSeverity = (status: LineStatus | null) => {
-    if (!status) return 0;
-    if (status.status === "major" && isToday(status.timestamp)) return 3;
-    if (status.status === "major") return 2;
-    if (status.status === "minor" && isToday(status.timestamp)) return 1;
-    return 0;
+  const formatAlertTime = (timestamp: string) => {
+    const date = new Date(timestamp);
+    if (isToday(timestamp)) {
+      return date.toLocaleString([], {
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+    }
+    return date.toLocaleString([], {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
   };
 
   return (
@@ -103,18 +110,30 @@ export function TrainLineCard({ line, status, onSelect }: TrainLineCardProps) {
             <ArrowRight className="h-4 w-4" />
             <p className="font-medium">To {lineDestinations[line].outbound}</p>
           </div>
-          <div className="flex items-center gap-2">
-            {status?.status === "major" && (
-              <span className="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-800 rounded-full">
-                Major delays {isToday(status.timestamp) && "TODAY"}
-              </span>
-            )}
-            {status?.status === "minor" && (
-              <span className="px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
-                Minor delays {isToday(status.timestamp) && "TODAY"}
-              </span>
-            )}
-          </div>
+          {status?.status !== "normal" && status?.direction === "outbound" && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                {status.status === "major" && (
+                  <span className="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-800 rounded-full">
+                    Major delays
+                  </span>
+                )}
+                {status.status === "minor" && (
+                  <span className="px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
+                    Minor delays
+                  </span>
+                )}
+              </div>
+              {isToday(status.timestamp) && (
+                <div className="text-sm text-gray-700">
+                  <p>
+                    <span className="font-medium text-mbta-red">Alert as of {formatAlertTime(status.timestamp)}:</span>{" "}
+                    {status.description}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Inbound Direction */}
@@ -123,45 +142,48 @@ export function TrainLineCard({ line, status, onSelect }: TrainLineCardProps) {
             <ArrowRight className="h-4 w-4" />
             <p className="font-medium">To {lineDestinations[line].inbound}</p>
           </div>
-          <div className="flex items-center gap-2">
-            {status?.status === "major" && (
-              <span className="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-800 rounded-full">
-                Major delays {isToday(status.timestamp) && "TODAY"}
-              </span>
-            )}
-            {status?.status === "minor" && (
-              <span className="px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
-                Minor delays {isToday(status.timestamp) && "TODAY"}
-              </span>
-            )}
-          </div>
+          {status?.status !== "normal" && status?.direction === "inbound" && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                {status.status === "major" && (
+                  <span className="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-800 rounded-full">
+                    Major delays
+                  </span>
+                )}
+                {status.status === "minor" && (
+                  <span className="px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
+                    Minor delays
+                  </span>
+                )}
+              </div>
+              {isToday(status.timestamp) && (
+                <div className="text-sm text-gray-700">
+                  <p>
+                    <span className="font-medium text-mbta-red">Alert as of {formatAlertTime(status.timestamp)}:</span>{" "}
+                    {status.description}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Status Information */}
-        {status && (
-          <div className="mt-2 space-y-2">
+        {/* General Status Information */}
+        {status && status.status !== "normal" && !status.direction && (
+          <div className="mt-2 space-y-2 border-t border-gray-100 pt-3">
             <div className="flex items-center gap-2 text-xs text-gray-500">
               <Clock className="h-3 w-3" />
               <p>
-                {new Date(status.timestamp).toLocaleString([], {
-                  hour: "numeric",
-                  minute: "2-digit",
-                  month: "short",
-                  day: "numeric",
-                })}
+                Alert as of {formatAlertTime(status.timestamp)}
               </p>
             </div>
-            <p className={`text-sm ${
-              status.status !== "normal" ? "text-mbta-red" : "text-gray-600"
-            }`}>
-              {status.description || "Service operating normally"}
+            <p className="text-sm text-mbta-red">
+              {status.description}
             </p>
-            {status.status !== "normal" && (
-              <div className="flex items-center gap-1 text-xs text-gray-500">
-                <Info className="h-4 w-4" />
-                <p>Tap for more details</p>
-              </div>
-            )}
+            <div className="flex items-center gap-1 text-xs text-gray-500">
+              <Info className="h-4 w-4" />
+              <p>Tap for more details</p>
+            </div>
           </div>
         )}
       </div>
