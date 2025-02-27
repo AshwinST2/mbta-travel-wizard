@@ -60,27 +60,8 @@ const lineDestinations = {
 } as const;
 
 export function TrainLineCard({ line, status, onSelect }: TrainLineCardProps) {
-  const isToday = (date: string) => {
-    const today = new Date();
-    const alertDate = new Date(date);
-    return (
-      alertDate.getDate() === today.getDate() &&
-      alertDate.getMonth() === today.getMonth() &&
-      alertDate.getFullYear() === today.getFullYear()
-    );
-  };
-
-  const formatAlertTime = (timestamp: string) => {
-    const date = new Date(timestamp);
-    if (isToday(timestamp)) {
-      return date.toLocaleString([], {
-        hour: 'numeric',
-        minute: '2-digit',
-      });
-    }
-    return date.toLocaleString([], {
-      month: 'short',
-      day: 'numeric',
+  const formatTime = (timestamp: string) => {
+    return new Date(timestamp).toLocaleString([], {
       hour: 'numeric',
       minute: '2-digit',
     });
@@ -99,7 +80,7 @@ export function TrainLineCard({ line, status, onSelect }: TrainLineCardProps) {
       <div className="space-y-4">
         <div className="flex justify-between items-start">
           <h3 className="text-lg font-semibold">{lineNames[line]}</h3>
-          {status?.status !== "normal" && isToday(status.timestamp) && (
+          {status?.status !== "normal" && (
             <AlertTriangle className="text-red-500 h-5 w-5" />
           )}
         </div>
@@ -124,14 +105,12 @@ export function TrainLineCard({ line, status, onSelect }: TrainLineCardProps) {
                   </span>
                 )}
               </div>
-              {isToday(status.timestamp) && (
-                <div className="text-sm text-gray-700">
-                  <p>
-                    <span className="font-medium text-mbta-red">Alert as of {formatAlertTime(status.timestamp)}:</span>{" "}
-                    {status.description}
-                  </p>
-                </div>
-              )}
+              <div className="text-sm text-gray-700">
+                <p>
+                  <span className="font-medium text-mbta-red">Alert as of {formatTime(status.timestamp)}:</span>{" "}
+                  {status.description}
+                </p>
+              </div>
             </div>
           )}
         </div>
@@ -156,14 +135,12 @@ export function TrainLineCard({ line, status, onSelect }: TrainLineCardProps) {
                   </span>
                 )}
               </div>
-              {isToday(status.timestamp) && (
-                <div className="text-sm text-gray-700">
-                  <p>
-                    <span className="font-medium text-mbta-red">Alert as of {formatAlertTime(status.timestamp)}:</span>{" "}
-                    {status.description}
-                  </p>
-                </div>
-              )}
+              <div className="text-sm text-gray-700">
+                <p>
+                  <span className="font-medium text-mbta-red">Alert as of {formatTime(status.timestamp)}:</span>{" "}
+                  {status.description}
+                </p>
+              </div>
             </div>
           )}
         </div>
@@ -173,13 +150,9 @@ export function TrainLineCard({ line, status, onSelect }: TrainLineCardProps) {
           <div className="mt-2 space-y-2 border-t border-gray-100 pt-3">
             <div className="flex items-center gap-2 text-xs text-gray-500">
               <Clock className="h-3 w-3" />
-              <p>
-                Alert as of {formatAlertTime(status.timestamp)}
-              </p>
+              <p>Alert as of {formatTime(status.timestamp)}</p>
             </div>
-            <p className="text-sm text-mbta-red">
-              {status.description}
-            </p>
+            <p className="text-sm text-mbta-red">{status.description}</p>
             <div className="flex items-center gap-1 text-xs text-gray-500">
               <Info className="h-4 w-4" />
               <p>Tap for more details</p>

@@ -1,3 +1,4 @@
+
 import { LineStatus, Disruption, TrainLine, Direction } from "./types";
 
 const API_KEY = "39fcdfa840624066b6d9153cfb41fc70";
@@ -7,6 +8,15 @@ const headers = new Headers({
   'x-api-key': API_KEY,
   'Accept': 'application/vnd.api+json'
 });
+
+const isToday = (date: Date): boolean => {
+  const today = new Date();
+  return (
+    date.getDate() === today.getDate() &&
+    date.getMonth() === today.getMonth() &&
+    date.getFullYear() === today.getFullYear()
+  );
+};
 
 export async function fetchLineStatuses(): Promise<LineStatus[]> {
   try {
@@ -30,29 +40,25 @@ export async function fetchLineStatuses(): Promise<LineStatus[]> {
       throw new Error("Invalid API response format");
     }
 
-    // Sort alerts by date, prioritizing today's alerts
-    const sortedAlerts = data.data.sort((a: any, b: any) => {
+    // Filter out non-today alerts and sort remaining alerts by time
+    const todayAlerts = data.data.filter((alert: any) => {
+      const alertDate = new Date(alert.attributes.active_period?.[0]?.start || alert.attributes.created_at);
+      return isToday(alertDate);
+    }).sort((a: any, b: any) => {
       const dateA = new Date(a.attributes.active_period?.[0]?.start || a.attributes.created_at);
       const dateB = new Date(b.attributes.active_period?.[0]?.start || b.attributes.created_at);
-      const isAToday = isToday(dateA);
-      const isBToday = isToday(dateB);
-
-      if (isAToday && !isBToday) return -1;
-      if (!isAToday && isBToday) return 1;
-      return dateA.getTime() - dateB.getTime();
+      return dateB.getTime() - dateA.getTime(); // Most recent first
     });
 
-    // Create line statuses from sorted alerts
     const lineStatuses: LineStatus[] = [];
 
-    for (const alert of sortedAlerts) {
+    for (const alert of todayAlerts) {
       const entities = alert.attributes.informed_entity || [];
       
       for (const entity of entities) {
         const routeId = entity.route?.toLowerCase();
         const direction = entity.direction_id === 0 ? "outbound" : "inbound";
         
-        // Map MBTA route IDs to our line types
         let line: TrainLine | null = null;
         if (routeId === 'red') line = 'red';
         else if (routeId === 'blue') line = 'blue';
@@ -75,7 +81,6 @@ export async function fetchLineStatuses(): Promise<LineStatus[]> {
         }
         
         const timestamp = alert.attributes.updated_at || alert.attributes.created_at;
-        const startTime = alert.attributes.active_period?.[0]?.start;
 
         lineStatuses.push({
           id: alert.id,
@@ -83,8 +88,7 @@ export async function fetchLineStatuses(): Promise<LineStatus[]> {
           status,
           description: alert.attributes.header || alert.attributes.short_header || 'Service update',
           timestamp,
-          direction,
-          startTime
+          direction
         });
       }
     }
