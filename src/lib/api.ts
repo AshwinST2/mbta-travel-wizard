@@ -1,3 +1,4 @@
+
 import { LineStatus, Disruption, TrainLine, Direction } from "./types";
 
 const API_KEY = "39fcdfa840624066b6d9153cfb41fc70";
@@ -18,23 +19,35 @@ const isToday = (date: Date): boolean => {
   );
 };
 
+// Updated to include both current and upcoming alerts for today
 const isCurrentAlert = (alert: any): boolean => {
+  // Check if the alert has a lifecycle of "UPCOMING" or "ONGOING" or "NEW"
+  const lifecycle = alert.attributes.lifecycle;
+  if (!["UPCOMING", "ONGOING", "NEW"].includes(lifecycle)) {
+    return false;
+  }
+  
   const now = new Date();
   const startTime = alert.attributes.active_period?.[0]?.start;
-  const endTime = alert.attributes.active_period?.[0]?.end;
   
   // If no start time, use created_at
   const effectiveStartTime = startTime ? new Date(startTime) : new Date(alert.attributes.created_at);
   
-  // Check if the alert is from today
-  if (!isToday(effectiveStartTime)) {
-    return false;
+  // Check if the alert is from today or starts today
+  if (!isToday(effectiveStartTime) && startTime) {
+    // For upcoming alerts, check if any active period starts today
+    const hasActivePeriodToday = alert.attributes.active_period?.some((period: any) => {
+      return period.start && isToday(new Date(period.start));
+    });
+    
+    if (!hasActivePeriodToday) {
+      return false;
+    }
   }
   
-  // If it has an end time, check if it's still valid
-  if (endTime) {
-    const effectiveEndTime = new Date(endTime);
-    return effectiveEndTime > now;
+  // Always show alerts created today
+  if (isToday(new Date(alert.attributes.created_at))) {
+    return true;
   }
   
   return true;
@@ -62,7 +75,7 @@ export async function fetchLineStatuses(): Promise<LineStatus[]> {
       throw new Error("Invalid API response format");
     }
 
-    // Filter to only include current alerts
+    // Filter to include both current and upcoming alerts for today
     const currentAlerts = data.data.filter(isCurrentAlert).sort((a: any, b: any) => {
       const dateA = new Date(a.attributes.active_period?.[0]?.start || a.attributes.created_at);
       const dateB = new Date(b.attributes.active_period?.[0]?.start || b.attributes.created_at);
